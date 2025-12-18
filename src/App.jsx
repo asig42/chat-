@@ -171,22 +171,7 @@ export default function App() {
         />
         <button type="submit">전송</button>
       </form>
-      <form className="chat-input" onSubmit={sendDM} style={{marginTop:'4px'}}>
-        <input
-          type="text"
-          value={dmTarget}
-          onChange={e => setDmTarget(e.target.value)}
-          placeholder="DM 받을 이름"
-          style={{maxWidth:'120px',marginRight:'6px'}}
-        />
-        <input
-          type="text"
-          value={dmInput}
-          onChange={e => setDmInput(e.target.value)}
-          placeholder="DM 내용"
-        />
-        <button type="submit">DM 전송</button>
-      </form>
+      {/* DM 입력 폼 제거됨 */}
     </div>
   );
 }

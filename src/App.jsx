@@ -28,7 +28,7 @@ export default function App() {
   // WebSocket 연결
   useEffect(() => {
     if (!name) return;
-    const socket = new window.WebSocket('ws://' + window.location.hostname + ':80');
+    const socket = new window.WebSocket('ws://' + window.location.hostname + ':8080');
     setWs(socket);
 
     socket.onopen = () => {

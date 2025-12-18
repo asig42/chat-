@@ -12,17 +12,35 @@ wss.on('connection', function connection(ws) {
       const data = JSON.parse(message);
       if (data.type === 'chat') {
         const msg = {
+          type: 'chat',
           name: data.name,
           text: data.text,
           time: data.time,
         };
         chatLog.push(msg);
-        // 모든 클라이언트에게 새 메시지 전송
         wss.clients.forEach(function each(client) {
           if (client.readyState === WebSocket.OPEN) {
             client.send(JSON.stringify({ type: 'chat', message: msg }));
           }
         });
+      } else if (data.type === 'dm') {
+        const msg = {
+          type: 'dm',
+          name: data.name,
+          nameTo: data.nameTo,
+          text: data.text,
+          time: data.time,
+          read: false,
+        };
+        chatLog.push(msg);
+        // DM 대상자와 본인에게만 전송
+        wss.clients.forEach(function each(client) {
+          if (client.readyState === WebSocket.OPEN && client !== ws) {
+            client.send(JSON.stringify({ type: 'dm', message: msg }));
+          }
+        });
+        // 본인에게도 전송
+        ws.send(JSON.stringify({ type: 'dm', message: msg }));
       }
     } catch (e) {
       // 무시

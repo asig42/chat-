@@ -10,7 +10,31 @@ export default function App() {
   const [name, setName] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [ws, setWs] = useState(null);
+  const [dmInput, setDmInput] = useState('');
+  const [dmTarget, setDmTarget] = useState('');
+  const [unreadDM, setUnreadDM] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef(null);
+  // 새 메시지 수(전체) 알림: 포커스가 아닐 때만 증가
+  useEffect(() => {
+    const handleFocus = () => setUnreadCount(0);
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  useEffect(() => {
+    if (document.hasFocus()) {
+      setUnreadCount(0);
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (unreadCount > 0) {
+      document.title = `(${unreadCount}) 간단 채팅앱`;
+    } else {
+      document.title = '간단 채팅앱';
+    }
+  }, [unreadCount]);
 
   useEffect(() => {
     const savedName = Cookies.get('chat_name');
@@ -24,6 +48,15 @@ export default function App() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  // 미확인 DM 카운트 계산
+  useEffect(() => {
+    if (!name) return;
+    const count = messages.filter(
+      (msg) => msg.type === 'dm' && msg.nameTo === name && !msg.read
+    ).length;
+    setUnreadDM(count);
+  }, [messages, name]);
 
   // WebSocket 연결
   useEffect(() => {
@@ -39,8 +72,12 @@ export default function App() {
         const data = JSON.parse(event.data);
         if (data.type === 'init') {
           setMessages(data.messages || []);
-        } else if (data.type === 'chat') {
-          setMessages(prev => [...prev, data.message]);
+        } else if (data.type === 'chat' || data.type === 'dm') {
+          setMessages(prev => {
+            // 새 메시지 수 증가(포커스 아닐 때만)
+            if (!document.hasFocus()) setUnreadCount(c => c + 1);
+            return [...prev, data.message];
+          });
         }
       } catch (e) {}
     };
@@ -59,6 +96,22 @@ export default function App() {
     };
     ws.send(JSON.stringify(msg));
     setInput('');
+  };
+
+  // DM 전송
+  const sendDM = (e) => {
+    e.preventDefault();
+    if (!dmInput.trim() || !dmTarget.trim() || !ws || ws.readyState !== 1) return;
+    const msg = {
+      type: 'dm',
+      name,
+      nameTo: dmTarget,
+      text: dmInput,
+      time: new Date().toLocaleTimeString(),
+      read: false,
+    };
+    ws.send(JSON.stringify(msg));
+    setDmInput('');
   };
 
   const handleNameSubmit = (e) => {
@@ -87,11 +140,23 @@ export default function App() {
 
   return (
     <div className="chat-container">
+      <div className="chat-header" style={{padding:'8px 16px',borderBottom:'1px solid #eee',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <span><b>채팅앱</b></span>
+        <span style={{position:'relative'}}>
+          <span>DM</span>
+          {unreadDM > 0 && (
+            <span style={{background:'#d32f2f',color:'#fff',borderRadius:'50%',padding:'2px 7px',fontSize:'13px',marginLeft:'6px',verticalAlign:'middle'}}>
+              {unreadDM}
+            </span>
+          )}
+        </span>
+      </div>
       <div className="chat-log">
         {messages.map((msg, idx) => (
-          <div key={idx} className="chat-message">
+          <div key={idx} className="chat-message" style={msg.type==='dm' && msg.nameTo===name ? {background:'#fffbe6'} : {}}>
             <span className="chat-time">[{msg.time}]</span>
             {msg.name ? <b className="chat-name">{msg.name}</b> : null} {msg.text}
+            {msg.type==='dm' && msg.nameTo===name && <span style={{color:'#d32f2f',fontSize:'12px',marginLeft:'8px'}}>(DM)</span>}
           </div>
         ))}
         <div ref={messagesEndRef} />
@@ -105,6 +170,22 @@ export default function App() {
           autoFocus
         />
         <button type="submit">전송</button>
+      </form>
+      <form className="chat-input" onSubmit={sendDM} style={{marginTop:'4px'}}>
+        <input
+          type="text"
+          value={dmTarget}
+          onChange={e => setDmTarget(e.target.value)}
+          placeholder="DM 받을 이름"
+          style={{maxWidth:'120px',marginRight:'6px'}}
+        />
+        <input
+          type="text"
+          value={dmInput}
+          onChange={e => setDmInput(e.target.value)}
+          placeholder="DM 내용"
+        />
+        <button type="submit">DM 전송</button>
       </form>
     </div>
   );

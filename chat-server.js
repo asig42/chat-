@@ -1,5 +1,7 @@
 const WebSocket = require('ws');
 
+
+// 반드시 8080 포트만 사용
 const wss = new WebSocket.Server({ port: 8080 });
 let chatLog = [];
 
